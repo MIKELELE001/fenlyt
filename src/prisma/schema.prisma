@@ -1,0 +1,145 @@
+// Scribe data model — see CLAUDE.md section 8.
+// Production (Vercel) uses PostgreSQL via Neon/Supabase. DATABASE_URL is the
+// pooled connection string; DIRECT_URL is the direct (non-pooled) connection
+// used for schema pushes/migrations. For offline local dev you can temporarily
+// set provider to "sqlite" with DATABASE_URL="file:./dev.db".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Source {
+  id             String     @id @default(cuid())
+  title          String
+  authorName     String
+  sourceType     SourceType @default(TEXT)
+  sourceUrl      String?
+  content        String
+  payoutAddress  String
+  pricePerUseUsd Decimal
+  // The creator who registered this source. Nullable so pre-auth sources (and
+  // seed data) remain valid; new sources are always owned by their creator.
+  ownerId        String?
+  owner          User?      @relation(fields: [ownerId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  citations      Citation[]
+}
+
+model QuerySession {
+  id              String             @id @default(cuid())
+  question        String
+  answer          String
+  status          QuerySessionStatus @default(GENERATED)
+  totalPaymentUsd Decimal
+  createdAt       DateTime           @default(now())
+  citations       Citation[]
+  receipts        PaymentReceipt[]
+}
+
+model Citation {
+  id             String       @id @default(cuid())
+  querySessionId String
+  sourceId       String
+  relevanceScore Float
+  excerptUsed    String?
+  querySession   QuerySession @relation(fields: [querySessionId], references: [id])
+  source         Source       @relation(fields: [sourceId], references: [id])
+}
+
+model PaymentReceipt {
+  id                String        @id @default(cuid())
+  querySessionId    String
+  totalAmountUsd    Decimal
+  status            PaymentStatus @default(PENDING)
+  txHash            String?
+  providerReference String?
+  isMock            Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  querySession      QuerySession  @relation(fields: [querySessionId], references: [id])
+}
+
+// Logged whenever a question finds no relevant registered source and is answered
+// from general knowledge instead. Surfaced on /demand so creators can register
+// content for in-demand topics. Deduped by `normalized` with a running `count`.
+model DemandSignal {
+  id          String   @id @default(cuid())
+  question    String
+  normalized  String   @unique
+  count       Int      @default(1)
+  createdAt   DateTime @default(now())
+  lastAskedAt DateTime @updatedAt
+}
+
+// --- Auth.js (NextAuth) models ---------------------------------------------
+// Standard adapter schema for database sessions. A User is a Scribe creator;
+// they own the sources they register (Source.ownerId) and earn from citations.
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  sources       Source[]
+  createdAt     DateTime  @default(now())
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum SourceType {
+  TEXT
+}
+
+enum QuerySessionStatus {
+  GENERATED
+  PAID
+  FAILED
+  UNSOURCED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
