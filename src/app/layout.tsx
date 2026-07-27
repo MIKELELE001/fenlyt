@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Scribe — Pay the source behind the answer",
+  title: "Fenlyt — Affordable financial intelligence",
   description:
-    "Scribe is a citation-based micropayment layer that pays creators, researchers, and publishers when AI answers use their work as grounding material.",
+    "Fenlyt is a pay-per-query AI financial research assistant — token safety, wallet reputation, market sentiment, and asset briefs for cents, not a subscription.",
 };
 
 export default function RootLayout({

@@ -1,18 +1,18 @@
-import { AskForm } from "@/components/ask/AskForm";
+import { FenlytForm } from "@/components/ask/FenlytForm";
 import styles from "./AskPage.module.css";
 
 export default function AskPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Ask Scribe</h1>
+        <h1 className={styles.title}>Ask Fenlyt</h1>
         <p className={styles.subtitle}>
-          The agent ranks registered sources, autonomously pays to unlock the
-          best matches, and returns a grounded answer with a payment receipt.
+          Token safety, wallet reputation, market sentiment, or a quick asset
+          brief — Fenlyt pulls live data and pays the query fee autonomously.
         </p>
       </header>
 
-      <AskForm />
+      <FenlytForm />
     </div>
   );
 }
