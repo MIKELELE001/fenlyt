@@ -1,9 +1,10 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 
-// Routes that require a signed-in creator. Everything else (landing, /signin,
-// auth + static assets) stays public so users can reach the sign-in button.
-const PROTECTED_PREFIXES = ["/sources", "/ask", "/receipts", "/demand"];
+// Routes that require a signed-in creator. Left empty for the hackathon demo —
+// no login wall; every route is public. Re-add prefixes here if per-user auth
+// is needed later.
+const PROTECTED_PREFIXES: string[] = [];
 
 function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
