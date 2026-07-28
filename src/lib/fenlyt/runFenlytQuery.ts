@@ -12,7 +12,7 @@ import {
   getWalletSummary,
   getNews,
 } from "@/lib/coinstats/client";
-import { executeScribePayment } from "@/lib/payments/executeScribePayment";
+import { executeQueryPayment } from "@/lib/payments/executeQueryPayment";
 
 export type FenlytQueryResult = {
   success: boolean;
@@ -143,7 +143,7 @@ export async function runFenlytQuery(
   // Charge the flat query fee. Reuses the existing settlement layer: a single
   // line item paid to Fenlyt's own treasury, rather than per-source payouts.
   const treasuryAddress = process.env.SCRIBE_TREASURY_WALLET ?? "";
-  const payment = await executeScribePayment({
+  const payment = await executeQueryPayment({
     querySessionId,
     citations: [
       {

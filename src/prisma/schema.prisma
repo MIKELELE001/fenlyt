@@ -1,4 +1,4 @@
-// Scribe data model — see CLAUDE.md section 8.
+// Fenlyt data model.
 // Production (Vercel) uses PostgreSQL via Neon/Supabase. DATABASE_URL is the
 // pooled connection string; DIRECT_URL is the direct (non-pooled) connection
 // used for schema pushes/migrations. For offline local dev you can temporarily
@@ -78,7 +78,7 @@ model DemandSignal {
 }
 
 // --- Auth.js (NextAuth) models ---------------------------------------------
-// Standard adapter schema for database sessions. A User is a Scribe creator;
+// Standard adapter schema for database sessions. A User is a Fenlyt account holder;
 // they own the sources they register (Source.ownerId) and earn from citations.
 
 model User {
