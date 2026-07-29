@@ -1,6 +1,18 @@
 // CoinStats API client — the single external data source for Fenlyt. Covers
 // the four core query categories: token safety, wallet reputation, market
 // sentiment, and quick asset briefs. Free tier: 20,000 requests/month.
+//
+// Endpoints verified against CoinStats' public docs (openapiv1.coinstats.app):
+// - GET /coins            — list, sortBy/filters, NO free-text search param
+// - GET /coins/{coinId}   — single coin by its lowercase id (e.g. "ethereum")
+// - GET /coins?coinIds=x,y — batch lookup by id
+// - GET /wallet/balance?address=&connectionId= — returns a raw array of
+//   token holdings (not wrapped in an object)
+// Note: CoinStats' full contract risk scanner ("Glider Token Risk") is a
+// paid Degen-plan feature, not available on the free tier this project
+// uses. Token safety here uses /coins?includeRiskScore=true instead — a
+// lighter, coin-level signal rather than a full contract scan. The prompt
+// is written to be explicit about that limitation rather than overclaim.
 
 const COINSTATS_BASE_URL = "https://openapiv1.coinstats.app";
 
@@ -18,7 +30,6 @@ async function coinstatsFetch<T>(path: string): Promise<T> {
       accept: "application/json",
       "X-API-KEY": getApiKey(),
     },
-    // CoinStats data changes fast; avoid stale Next.js fetch caching.
     cache: "no-store",
   });
 
@@ -41,64 +52,129 @@ export type CoinMarketData = {
   marketCap?: number;
   volume?: number;
   rank?: number;
+  riskScore?: number;
 };
 
-/** Market data + price action for a coin by symbol or CoinStats id. Used for
- * market-sentiment and quick-brief queries. */
-export async function getCoinMarketData(query: string): Promise<CoinMarketData | null> {
-  const data = await coinstatsFetch<{ result: CoinMarketData[] }>(
-    `/coins?search=${encodeURIComponent(query)}&limit=1`,
+/**
+ * Resolve a free-text entity (symbol like "ETH", or a name/id like
+ * "ethereum") to a coin. There is no free-text search on /coins, so this
+ * tries a direct coinId lookup first (cheap, works when the model extracted
+ * a proper id), then falls back to scanning the top-ranked coins list for a
+ * matching symbol or name.
+ */
+export async function getCoinMarketData(
+  query: string,
+  { includeRiskScore = false }: { includeRiskScore?: boolean } = {},
+): Promise<CoinMarketData | null> {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return null;
+
+  // Try a direct id lookup first (e.g. "ethereum", "bitcoin").
+  try {
+    const direct = await coinstatsFetch<Record<string, unknown>>(
+      `/coins/${encodeURIComponent(normalized)}${includeRiskScore ? "?includeRiskScore=true" : ""}`,
+    );
+    if (direct && typeof direct.id === "string") {
+      return mapCoin(direct);
+    }
+  } catch {
+    // Not a valid coinId — fall through to the symbol/name search below.
+  }
+
+  // Fall back: scan the top coins by rank and match symbol or name.
+  const list = await coinstatsFetch<{ result: Record<string, unknown>[] }>(
+    `/coins?limit=250&sortBy=rank${includeRiskScore ? "&includeRiskScore=true" : ""}`,
   );
-  return data.result?.[0] ?? null;
+  const match = (list.result ?? []).find((c) => {
+    const symbol = String(c.symbol ?? "").toLowerCase();
+    const name = String(c.name ?? "").toLowerCase();
+    return symbol === normalized || name === normalized;
+  });
+  return match ? mapCoin(match) : null;
 }
 
-export type TokenRiskReport = {
-  address: string;
-  isScam?: boolean;
-  riskLevel?: string;
-  flags?: string[];
-  raw?: unknown;
-};
-
-/** Token safety / risk check by contract address. Used for the "is this token
- * safe" query category. */
-export async function getTokenRisk(
-  address: string,
-  chain = "ethereum",
-): Promise<TokenRiskReport> {
-  const data = await coinstatsFetch<Record<string, unknown>>(
-    `/wallet/tokenRisk?address=${encodeURIComponent(address)}&connectionId=${encodeURIComponent(chain)}`,
-  );
+function mapCoin(c: Record<string, unknown>): CoinMarketData {
   return {
-    address,
-    isScam: data.isScam as boolean | undefined,
-    riskLevel: data.riskLevel as string | undefined,
-    flags: data.flags as string[] | undefined,
-    raw: data,
+    id: String(c.id ?? ""),
+    name: String(c.name ?? ""),
+    symbol: String(c.symbol ?? ""),
+    price: Number(c.price ?? 0),
+    priceChange1d: c.priceChange1d != null ? Number(c.priceChange1d) : undefined,
+    priceChange1w: c.priceChange1w != null ? Number(c.priceChange1w) : undefined,
+    marketCap: c.marketCap != null ? Number(c.marketCap) : undefined,
+    volume: c.volume != null ? Number(c.volume) : undefined,
+    rank: c.rank != null ? Number(c.rank) : undefined,
+    riskScore: c.riskScore != null ? Number(c.riskScore) : undefined,
   };
 }
 
-export type WalletSummary = {
-  address: string;
-  totalValueUsd?: number;
-  holdings?: Array<{ symbol: string; amount: number; valueUsd?: number }>;
-  raw?: unknown;
+export type TokenSafetyReport = {
+  query: string;
+  coin: CoinMarketData | null;
+  note: string;
 };
 
-/** Wallet holdings/history summary. Used for the wallet-reputation query
- * category. */
+/**
+ * Coin-level safety signal (rank, volume, market cap, riskScore if the API
+ * returns one). This is NOT a full smart-contract scan — that CoinStats
+ * feature is a paid add-on. The prompt is told this plainly so the answer
+ * doesn't overclaim certainty.
+ */
+export async function getTokenSafety(query: string): Promise<TokenSafetyReport> {
+  const coin = await getCoinMarketData(query, { includeRiskScore: true });
+  return {
+    query,
+    coin,
+    note: coin
+      ? "Signal is based on market rank, volume, and market cap (and a risk score if provided by the API) — not a full smart-contract security scan."
+      : "No matching coin was found for this query.",
+  };
+}
+
+export type WalletHolding = {
+  coinId: string;
+  name: string;
+  symbol: string;
+  amount: number;
+  price: number;
+  valueUsd: number;
+  rank?: number;
+};
+
+export type WalletSummary = {
+  address: string;
+  totalValueUsd: number;
+  holdings: WalletHolding[];
+};
+
+/** Wallet holdings summary for an EVM (or other supported chain) address.
+ * Used for the wallet-reputation query category. */
 export async function getWalletSummary(
   address: string,
-  networks = "ethereum",
+  connectionId = "ethereum",
 ): Promise<WalletSummary> {
-  const data = await coinstatsFetch<Record<string, unknown>>(
-    `/wallet/balance?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`,
+  const rows = await coinstatsFetch<Record<string, unknown>[]>(
+    `/wallet/balance?address=${encodeURIComponent(address)}&connectionId=${encodeURIComponent(connectionId)}`,
   );
+
+  const holdings: WalletHolding[] = (rows ?? []).map((r) => {
+    const amount = Number(r.amount ?? 0);
+    const price = Number(r.price ?? 0);
+    return {
+      coinId: String(r.coinId ?? ""),
+      name: String(r.name ?? ""),
+      symbol: String(r.symbol ?? ""),
+      amount,
+      price,
+      valueUsd: amount * price,
+      rank: r.rank != null ? Number(r.rank) : undefined,
+    };
+  });
+
   return {
     address,
-    totalValueUsd: data.totalValueUsd as number | undefined,
-    holdings: data.balances as WalletSummary["holdings"],
-    raw: data,
+    totalValueUsd: holdings.reduce((sum, h) => sum + h.valueUsd, 0),
+    holdings,
   };
 }
 
@@ -109,10 +185,9 @@ export type NewsItem = {
   source?: string;
 };
 
-/** Recent news for sentiment synthesis. */
+/** Recent general market news, used as supporting context for sentiment
+ * synthesis alongside the coin's own price action. */
 export async function getNews(limit = 5): Promise<NewsItem[]> {
-  const data = await coinstatsFetch<{ result: NewsItem[] }>(
-    `/news?limit=${limit}`,
-  );
+  const data = await coinstatsFetch<{ result: NewsItem[] }>(`/news?limit=${limit}`);
   return data.result ?? [];
 }
