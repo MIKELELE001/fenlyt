@@ -193,6 +193,7 @@ export type WalletHolding = {
   price: number;
   valueUsd: number;
   rank?: number;
+  chain?: string;
 };
 
 export type WalletSummary = {
@@ -201,14 +202,18 @@ export type WalletSummary = {
   holdings: WalletHolding[];
 };
 
-/** Wallet holdings summary for an EVM (or other supported chain) address.
- * Used for the wallet-reputation query category. */
+/**
+ * Wallet holdings summary across all EVM chains in one call (not just
+ * Ethereum) — uses CoinStats' /wallet/balances endpoint. Pass a specific
+ * `networks` value (e.g. "ethereum" or "ethereum,polygon") to narrow the
+ * search if needed; defaults to every supported EVM chain.
+ */
 export async function getWalletSummary(
   address: string,
-  connectionId = "ethereum",
+  networks = "all",
 ): Promise<WalletSummary> {
   const rows = await coinstatsFetch<Record<string, unknown>[]>(
-    `/wallet/balance?address=${encodeURIComponent(address)}&connectionId=${encodeURIComponent(connectionId)}`,
+    `/wallet/balances?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`,
   );
 
   const holdings: WalletHolding[] = (rows ?? []).map((r) => {
@@ -222,6 +227,7 @@ export async function getWalletSummary(
       price,
       valueUsd: amount * price,
       rank: r.rank != null ? Number(r.rank) : undefined,
+      chain: r.chain != null ? String(r.chain) : undefined,
     };
   });
 
