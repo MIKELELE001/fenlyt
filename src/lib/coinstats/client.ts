@@ -222,6 +222,15 @@ export async function getWalletSummary(
     value: Array<{ blockchain: string; balances: Record<string, unknown>[] }>;
   }>(`/wallet/balances?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`);
 
+  // TEMPORARY diagnostic — remove once the empty-result bug is confirmed
+  // fixed. Logs the raw shape the live server actually received, since it
+  // may differ from a manual local test (rate limiting, credit exhaustion).
+  console.log(
+    "[fenlyt][getWalletSummary] raw response chain count:",
+    Array.isArray(response?.value) ? response.value.length : "value is not an array",
+    JSON.stringify(response).slice(0, 500),
+  );
+
   const holdings: WalletHolding[] = (response.value ?? []).flatMap((chainEntry) =>
     (chainEntry.balances ?? []).map((r) => {
       const amount = Number(r.amount ?? 0);
