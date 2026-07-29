@@ -218,20 +218,16 @@ export async function getWalletSummary(
   address: string,
   networks = "all",
 ): Promise<WalletSummary> {
-  const response = await coinstatsFetch<{
-    value: Array<{ blockchain: string; balances: Record<string, unknown>[] }>;
-  }>(`/wallet/balances?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`);
-
-  // TEMPORARY diagnostic — remove once the empty-result bug is confirmed
-  // fixed. Logs the raw shape the live server actually received, since it
-  // may differ from a manual local test (rate limiting, credit exhaustion).
-  console.log(
-    "[fenlyt][getWalletSummary] raw response chain count:",
-    Array.isArray(response?.value) ? response.value.length : "value is not an array",
-    JSON.stringify(response).slice(0, 500),
+  type ChainEntry = { blockchain: string; balances: Record<string, unknown>[] };
+  const raw = await coinstatsFetch<ChainEntry[] | { value: ChainEntry[] }>(
+    `/wallet/balances?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`,
   );
 
-  const holdings: WalletHolding[] = (response.value ?? []).flatMap((chainEntry) =>
+  // The live API has been observed returning a plain top-level array; handle
+  // a `{ value: [...] }` wrapper too in case that shape shows up elsewhere.
+  const chains: ChainEntry[] = Array.isArray(raw) ? raw : (raw?.value ?? []);
+
+  const holdings: WalletHolding[] = chains.flatMap((chainEntry) =>
     (chainEntry.balances ?? []).map((r) => {
       const amount = Number(r.amount ?? 0);
       const price = Number(r.price ?? 0);
