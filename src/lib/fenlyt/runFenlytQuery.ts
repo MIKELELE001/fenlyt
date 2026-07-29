@@ -70,9 +70,24 @@ async function fetchDataForCategory(
     case "token_safety":
       if (!trimmed) return { error: "No token or coin was named in the question." };
       return getTokenSafety(trimmed);
-    case "wallet_check":
+    case "wallet_check": {
       if (!trimmed) return { error: "No wallet address found in the question." };
-      return getWalletSummary(trimmed);
+      const summary = await getWalletSummary(trimmed);
+      const realHoldings = summary.holdings
+        .filter((h) => h.valueUsd > 0)
+        .sort((a, b) => b.valueUsd - a.valueUsd);
+      const dustCount = summary.holdings.length - realHoldings.length;
+      return {
+        address: summary.address,
+        totalValueUsd: summary.totalValueUsd,
+        topHoldings: realHoldings.slice(0, 10),
+        dustOrZeroValueTokenCount: dustCount,
+        note:
+          dustCount > 0
+            ? `${dustCount} additional token(s) with zero market value were excluded — likely spam/dust airdrops, not real holdings.`
+            : undefined,
+      };
+    }
     case "sentiment": {
       if (!trimmed) {
         // No specific asset named — fall back to general market news only.
