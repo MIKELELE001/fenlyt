@@ -55,12 +55,58 @@ export type CoinMarketData = {
   riskScore?: number;
 };
 
+// Common symbol -> CoinStats coinId map. Covers the vast majority of real
+// questions with a single cheap /coins/{id} call, avoiding the expensive
+// list-scan fallback below (which was hitting the free-tier rate limit).
+const SYMBOL_TO_COIN_ID: Record<string, string> = {
+  btc: "bitcoin",
+  eth: "ethereum",
+  sol: "solana",
+  bnb: "binance-coin",
+  xrp: "ripple",
+  ada: "cardano",
+  doge: "dogecoin",
+  usdt: "tether",
+  usdc: "usd-coin",
+  matic: "matic-network",
+  dot: "polkadot",
+  avax: "avalanche-2",
+  link: "chainlink",
+  ltc: "litecoin",
+  trx: "tron",
+  shib: "shiba-inu",
+  arb: "arbitrum",
+  op: "optimism",
+  atom: "cosmos",
+  near: "near",
+  apt: "aptos",
+  sui: "sui",
+};
+
+// Short-lived in-memory cache for the top-coins fallback list, so a burst of
+// queries within the same warm serverless instance doesn't re-spend credits
+// on an identical list fetch. Cleared naturally on cold start.
+let topCoinsCache: { data: Record<string, unknown>[]; fetchedAt: number } | null = null;
+const TOP_COINS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function getTopCoinsList(): Promise<Record<string, unknown>[]> {
+  if (topCoinsCache && Date.now() - topCoinsCache.fetchedAt < TOP_COINS_CACHE_TTL_MS) {
+    return topCoinsCache.data;
+  }
+  const list = await coinstatsFetch<{ result: Record<string, unknown>[] }>(
+    `/coins?limit=100&sortBy=rank`,
+  );
+  topCoinsCache = { data: list.result ?? [], fetchedAt: Date.now() };
+  return topCoinsCache.data;
+}
+
 /**
  * Resolve a free-text entity (symbol like "ETH", or a name/id like
- * "ethereum") to a coin. There is no free-text search on /coins, so this
- * tries a direct coinId lookup first (cheap, works when the model extracted
- * a proper id), then falls back to scanning the top-ranked coins list for a
- * matching symbol or name.
+ * "ethereum") to a coin. There is no free-text search on /coins, so this:
+ * 1. Checks the common-symbol map (zero extra cost beyond the id lookup)
+ * 2. Tries the input directly as a coinId (covers names like "ethereum")
+ * 3. Falls back to a cached top-100 list scan (only hits the API once per
+ *    5-minute window, to stay well under the free-tier rate limit)
  */
 export async function getCoinMarketData(
   query: string,
@@ -69,28 +115,36 @@ export async function getCoinMarketData(
   const normalized = query.trim().toLowerCase();
   if (!normalized) return null;
 
-  // Try a direct id lookup first (e.g. "ethereum", "bitcoin").
-  try {
-    const direct = await coinstatsFetch<Record<string, unknown>>(
-      `/coins/${encodeURIComponent(normalized)}${includeRiskScore ? "?includeRiskScore=true" : ""}`,
-    );
-    if (direct && typeof direct.id === "string") {
-      return mapCoin(direct);
+  const mappedId = SYMBOL_TO_COIN_ID[normalized];
+  const idsToTry = mappedId ? [mappedId, normalized] : [normalized];
+
+  for (const id of idsToTry) {
+    try {
+      const direct = await coinstatsFetch<Record<string, unknown>>(
+        `/coins/${encodeURIComponent(id)}${includeRiskScore ? "?includeRiskScore=true" : ""}`,
+      );
+      if (direct && typeof direct.id === "string") {
+        return mapCoin(direct);
+      }
+    } catch {
+      // Not a valid coinId — try the next candidate / fall through below.
     }
-  } catch {
-    // Not a valid coinId — fall through to the symbol/name search below.
   }
 
-  // Fall back: scan the top coins by rank and match symbol or name.
-  const list = await coinstatsFetch<{ result: Record<string, unknown>[] }>(
-    `/coins?limit=250&sortBy=rank${includeRiskScore ? "&includeRiskScore=true" : ""}`,
-  );
-  const match = (list.result ?? []).find((c) => {
-    const symbol = String(c.symbol ?? "").toLowerCase();
-    const name = String(c.name ?? "").toLowerCase();
-    return symbol === normalized || name === normalized;
-  });
-  return match ? mapCoin(match) : null;
+  // Fall back: scan a cached top-100 list and match symbol or name.
+  try {
+    const list = await getTopCoinsList();
+    const match = list.find((c) => {
+      const symbol = String(c.symbol ?? "").toLowerCase();
+      const name = String(c.name ?? "").toLowerCase();
+      return symbol === normalized || name === normalized;
+    });
+    return match ? mapCoin(match) : null;
+  } catch {
+    // Rate-limited or otherwise unavailable — return null rather than throw,
+    // so the pipeline can report "no data found" instead of a hard failure.
+    return null;
+  }
 }
 
 function mapCoin(c: Record<string, unknown>): CoinMarketData {
