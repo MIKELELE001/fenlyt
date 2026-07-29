@@ -207,29 +207,37 @@ export type WalletSummary = {
  * Ethereum) — uses CoinStats' /wallet/balances endpoint. Pass a specific
  * `networks` value (e.g. "ethereum" or "ethereum,polygon") to narrow the
  * search if needed; defaults to every supported EVM chain.
+ *
+ * Verified response shape (confirmed via live API call, not just docs):
+ * { "value": [ { "blockchain": "ethereum", "balances": [ { coinId, amount,
+ *   chain, name, symbol, price, pCh24h, rank, volume, ... }, ... ] }, ... ] }
+ * — i.e. one entry per chain, each with its own nested `balances` array.
+ * This is NOT a flat array of holdings at the top level.
  */
 export async function getWalletSummary(
   address: string,
   networks = "all",
 ): Promise<WalletSummary> {
-  const rows = await coinstatsFetch<Record<string, unknown>[]>(
-    `/wallet/balances?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`,
-  );
+  const response = await coinstatsFetch<{
+    value: Array<{ blockchain: string; balances: Record<string, unknown>[] }>;
+  }>(`/wallet/balances?address=${encodeURIComponent(address)}&networks=${encodeURIComponent(networks)}`);
 
-  const holdings: WalletHolding[] = (rows ?? []).map((r) => {
-    const amount = Number(r.amount ?? 0);
-    const price = Number(r.price ?? 0);
-    return {
-      coinId: String(r.coinId ?? ""),
-      name: String(r.name ?? ""),
-      symbol: String(r.symbol ?? ""),
-      amount,
-      price,
-      valueUsd: amount * price,
-      rank: r.rank != null ? Number(r.rank) : undefined,
-      chain: r.chain != null ? String(r.chain) : undefined,
-    };
-  });
+  const holdings: WalletHolding[] = (response.value ?? []).flatMap((chainEntry) =>
+    (chainEntry.balances ?? []).map((r) => {
+      const amount = Number(r.amount ?? 0);
+      const price = Number(r.price ?? 0);
+      return {
+        coinId: String(r.coinId ?? ""),
+        name: String(r.name ?? ""),
+        symbol: String(r.symbol ?? ""),
+        amount,
+        price,
+        valueUsd: amount * price,
+        rank: r.rank != null ? Number(r.rank) : undefined,
+        chain: r.chain != null ? String(r.chain) : chainEntry.blockchain,
+      };
+    }),
+  );
 
   return {
     address,
