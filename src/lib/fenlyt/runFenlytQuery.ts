@@ -8,7 +8,7 @@ import {
 } from "@/lib/ai/buildFenlytPrompt";
 import {
   getCoinMarketData,
-  getTokenRisk,
+  getTokenSafety,
   getWalletSummary,
   getNews,
 } from "@/lib/coinstats/client";
@@ -68,16 +68,17 @@ async function fetchDataForCategory(
   const trimmed = entity.trim();
   switch (category) {
     case "token_safety":
-      if (!trimmed) return { error: "No token/contract address found in the question." };
-      return getTokenRisk(trimmed);
+      if (!trimmed) return { error: "No token or coin was named in the question." };
+      return getTokenSafety(trimmed);
     case "wallet_check":
       if (!trimmed) return { error: "No wallet address found in the question." };
       return getWalletSummary(trimmed);
     case "sentiment": {
-      const [market, news] = await Promise.all([
-        trimmed ? getCoinMarketData(trimmed) : null,
-        getNews(5),
-      ]);
+      if (!trimmed) {
+        // No specific asset named — fall back to general market news only.
+        return { market: null, news: await getNews(5) };
+      }
+      const [market, news] = await Promise.all([getCoinMarketData(trimmed), getNews(5)]);
       return { market, news };
     }
     case "brief":
