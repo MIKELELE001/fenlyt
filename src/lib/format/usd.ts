@@ -1,5 +1,5 @@
 /**
- * Format a USD amount for display. Prices in Scribe are micropayments and can
+ * Format a USD amount for display. Prices in Fenlyt are micropayments and can
  * be sub-cent, so we allow up to 4 decimals while always showing at least 2.
  */
 export function formatUsd(value: string | number): string {

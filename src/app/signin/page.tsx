@@ -33,10 +33,10 @@ export default async function SignInPage({
           <span className={styles.brandMark} aria-hidden>
             <Feather size={18} />
           </span>
-          <span className={styles.brandName}>Scribe</span>
+          <span className={styles.brandName}>Fenlyt</span>
         </Link>
 
-        <h1 className={styles.title}>Sign in to Scribe</h1>
+        <h1 className={styles.title}>Sign in to Fenlyt</h1>
         <p className={styles.sub}>
           Register sources, ask grounded questions, and track what you earn.
         </p>
@@ -52,7 +52,7 @@ export default async function SignInPage({
         </form>
 
         <p className={styles.legal}>
-          By continuing you agree to let Scribe create an account for you.
+          By continuing you agree to let Fenlyt create an account for you.
         </p>
       </div>
     </div>

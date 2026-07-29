@@ -1,5 +1,5 @@
 // Payment execution adapter types — the settlement layer. See CLAUDE.md §13.
-// The rest of the app calls executeScribePayment() with this input shape and
+// The rest of the app calls executeQueryPayment() with this input shape and
 // never touches a provider directly.
 
 export type PaymentExecutionInput = {

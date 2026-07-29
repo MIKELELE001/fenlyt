@@ -1,25 +1,22 @@
 import Link from "next/link";
-import { ArrowRight, FilePlus2, Sparkles } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function HomePage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <span className={styles.eyebrow}>Citation-based micropayments</span>
-        <h1 className={styles.headline}>Pay the source behind the answer.</h1>
+        <span className={styles.eyebrow}>Pay-per-query financial research</span>
+        <h1 className={styles.headline}>Affordable financial intelligence, for everyone.</h1>
         <p className={styles.sub}>
-          Scribe helps creators, researchers, and publishers earn when AI
-          answers use their work.
+          Fenlyt answers the questions that matter before you trade — is this
+          token safe, what does this wallet&apos;s history say, what&apos;s the
+          market feeling right now — for cents, not a subscription.
         </p>
         <div className={styles.ctas}>
-          <Link href="/sources/new" className={styles.ctaPrimary}>
-            <FilePlus2 size={16} aria-hidden />
-            Register a source
-          </Link>
-          <Link href="/ask" className={styles.ctaSecondary}>
-            <Sparkles size={16} aria-hidden />
-            Ask Scribe
+          <Link href="/ask" className={styles.ctaPrimary}>
+            <Search size={16} aria-hidden />
+            Ask Fenlyt
             <ArrowRight size={16} aria-hidden />
           </Link>
         </div>
@@ -28,27 +25,27 @@ export default function HomePage() {
       <section className={styles.steps}>
         <div className={styles.step}>
           <span className={styles.stepNum}>1</span>
-          <h3 className={styles.stepTitle}>Register a source</h3>
+          <h3 className={styles.stepTitle}>Ask anything financial</h3>
           <p className={styles.stepText}>
-            Add an article, note, or memo with a price per use and a payout
-            address.
+            Token safety, wallet reputation, market sentiment, or a quick asset
+            brief — ask in plain language.
           </p>
         </div>
         <div className={styles.step}>
           <span className={styles.stepNum}>2</span>
-          <h3 className={styles.stepTitle}>Agent asks and pays</h3>
+          <h3 className={styles.stepTitle}>Fenlyt pays for the data</h3>
           <p className={styles.stepText}>
-            Scribe grounds on the most relevant sources and pays each in USDC —
-            no human confirmation. No match? It still answers, and logs the
-            topic as creator demand.
+            The agent pulls live market data, pays the micro-fee autonomously
+            over x402, and grounds the answer in real numbers — no invented
+            figures.
           </p>
         </div>
         <div className={styles.step}>
           <span className={styles.stepNum}>3</span>
-          <h3 className={styles.stepTitle}>Creator earns</h3>
+          <h3 className={styles.stepTitle}>Get a research brief</h3>
           <p className={styles.stepText}>
-            Every grounded answer returns a receipt showing exactly who was paid
-            and how much.
+            A clear verdict up front, backed by the data that supports it —
+            institutional-grade insight at retail-friendly prices.
           </p>
         </div>
       </section>

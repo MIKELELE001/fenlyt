@@ -4,14 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import {
-  Feather,
-  Home,
-  Library,
-  Sparkles,
-  ReceiptText,
-  TrendingUp,
-} from "lucide-react";
+import { LineChart, Home, Search, ReceiptText } from "lucide-react";
 import styles from "./AppShell.module.css";
 
 type NavItem = {
@@ -22,10 +15,8 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/sources", label: "Sources", icon: Library },
-  { href: "/ask", label: "Ask Scribe", icon: Sparkles },
-  { href: "/receipts", label: "Receipts", icon: ReceiptText },
-  { href: "/demand", label: "Demand", icon: TrendingUp },
+  { href: "/ask", label: "Research", icon: Search },
+  { href: "/receipts", label: "History", icon: ReceiptText },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -46,9 +37,9 @@ export function AppShell({ header, children }: AppShellProps) {
       <aside className={styles.sidebar}>
         <Link href="/" className={styles.brand}>
           <span className={styles.brandMark} aria-hidden>
-            <Feather size={18} />
+            <LineChart size={18} />
           </span>
-          <span className={styles.brandName}>Scribe</span>
+          <span className={styles.brandName}>Fenlyt</span>
         </Link>
 
         <nav className={styles.nav} aria-label="Primary">
@@ -70,9 +61,9 @@ export function AppShell({ header, children }: AppShellProps) {
         </nav>
 
         <div className={styles.sidebarFooter}>
-          <p className={styles.footerTitle}>Pay the source</p>
+          <p className={styles.footerTitle}>Affordable market intelligence</p>
           <p className={styles.footerText}>
-            Creators earn when AI answers cite their work.
+            Pay per query — cents, not subscriptions.
           </p>
         </div>
       </aside>

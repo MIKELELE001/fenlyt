@@ -55,10 +55,10 @@ export function ReceiptList() {
     return (
       <EmptyState
         title="No receipts yet"
-        description="Ask Scribe a question — the agent pays each cited source and a receipt appears here."
+        description="Ask Fenlyt a question — the agent pays the query fee and a receipt appears here."
         action={
           <ButtonLink href="/ask" leftIcon={<Sparkles size={16} />}>
-            Ask Scribe
+            Ask Fenlyt
           </ButtonLink>
         }
       />
