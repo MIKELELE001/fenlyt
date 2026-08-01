@@ -62,7 +62,7 @@ export function ResultDashboard({ result }: { result: Success }) {
         <Receipt size={16} aria-hidden />
         <span>
           ${result.amountUsd} paid
-          {result.payment?.isMock ? " (mock)" : ""} ·{" "}
+          {result.payment?.isMock ? " (testnet demo)" : ""} ·{" "}
           {result.payment?.status === "SUCCEEDED" ? "settled" : "pending"}
         </span>
       </div>
