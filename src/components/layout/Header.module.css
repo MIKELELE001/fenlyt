@@ -86,15 +86,15 @@
   font-weight: 500;
 }
 
-.signIn {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-text-inverse);
-  font-size: 13px;
-  font-weight: 500;
-}
+@media (max-width: 640px) {
+  .header {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
 
-.signIn:hover {
-  background: var(--color-accent-hover);
+  .network {
+    font-size: 12px;
+  }
 }
