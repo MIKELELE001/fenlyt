@@ -70,9 +70,18 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[POST /api/fenlyt/query] pipeline failed", error);
     await markSessionComplete(querySessionId, "FAILED");
+
+    const message = error instanceof Error ? error.message : "";
+    const isRateLimited = message.includes("429") || message.toLowerCase().includes("rate limit");
+    const isTimeout = message.toLowerCase().includes("timeout") || message.toLowerCase().includes("timed out");
+
     const body: FenlytQueryResponse = {
       success: false,
-      error: "Fenlyt could not complete this request. Please try again.",
+      error: isRateLimited
+        ? "Market data feed is busy right now — please wait a moment and try again."
+        : isTimeout
+          ? "The request took too long to complete. Please try again."
+          : "Fenlyt could not complete this request. Please try again.",
     };
     return NextResponse.json(body, { status: 500 });
   }
