@@ -106,6 +106,19 @@ export default function HomePage() {
         </p>
       </section>
 
+      <section className={styles.whyNowSection}>
+        <h2 className={styles.sectionTitle}>What you&apos;re actually paying for</h2>
+        <p className={styles.whyText}>
+          Ask Fenlyt about ETH today, and again next week — the answer
+          changes, because the market did. You&apos;re not paying for an AI
+          model; you&apos;re paying for freshness: live prices, live wallets,
+          live news, live sentiment, re-fetched and re-synthesized every
+          single time you ask. That&apos;s why it&apos;s priced per query
+          instead of a flat subscription — the value resets with every
+          question.
+        </p>
+      </section>
+
       <section className={styles.architectureSection}>
         <h2 className={styles.sectionTitle}>How settlement works</h2>
         <p className={styles.whyText}>
